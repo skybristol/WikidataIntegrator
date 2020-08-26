@@ -294,7 +294,48 @@ def wait_for_last_modified(timestamp, delay=30, entity="http://www.wikidata.org"
         sleep(delay)
 
 
+def get_subclasses_of(wdid, endpoint='https://query.wikidata.org/sparql'):
+    query = '''SELECT ?item ?itemLabel WHERE {
+      SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+      ?item wdt:P279 wd:%s.
+    }''' % (wdid)
+    results = wdi_core.WDItemEngine.execute_sparql_query(query, endpoint=endpoint)['results']['bindings']
+
+    subclasses = list()
+    for item in results:
+        item_record = wdi_core.WDItemEngine(wd_item_id=item["item"]["value"].split("/")[-1])
+        subclasses.append(item_record)
+
+    return subclasses
+
+
+def get_wd_id_by_alias(alias, wd_items):
+    return next(
+        (
+            i.wd_item_id for i in wd_items
+            if next(
+                (
+                    a for a in i.wd_json_representation["aliases"]["en"] if a["value"] == alias
+                ), None
+            )
+            is not None
+        ),
+        None
+    )
+
+
+def coordinate_mapper(coordinates):
+    """
+    Structures a set of lat,lon coordinates in a string to the structure required by the Wikidata property (P625)
+
+    :param coordinates: string coordinates as a list of latitude and longitude
+    :return: dictionary containing structure needed by the Wikidata property
+    """
+    return coordinates
+
+
 from .mapping_relation_helper import MappingRelationHelper
 from .publication import PublicationHelper
 from .release import Release
 from .wikibase_helper import WikibaseHelper
+from .ecoregion import Ecoregion
