@@ -71,7 +71,7 @@ def try_write(wd_item, record_id, record_prop, login, edit_summary='', write=Tru
     :type login: PBB_login.WDLogin
     :param edit_summary: passed directly to wd_item.write
     :type edit_summary: str
-    :param write: If `False`, do not actually perform write. Action will be logged as if write had occured
+    :param write: If `False`, do not actually perform write. Action will be logged as if write had occurred
     :type write: bool
     :return: True if write did not throw an exception, returns the exception otherwise
     """
@@ -294,44 +294,96 @@ def wait_for_last_modified(timestamp, delay=30, entity="http://www.wikidata.org"
         sleep(delay)
 
 
-def get_subclasses_of(wdid, endpoint='https://query.wikidata.org/sparql'):
-    query = '''SELECT ?item ?itemLabel WHERE {
-      SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
-      ?item wdt:P279 wd:%s.
-    }''' % (wdid)
+def items_by_label(
+        search_property,
+        search_subject,
+        label=None,
+        return_raw_data=False,
+        id_prefixes=None,
+        id_sep=":",
+        endpoint='https://query.wikidata.org/sparql'):
+    """
+    Searches Wikidata items within a result based specified property value for matches against both primary and
+    alternative labels. This is helpful for cases where identifiers (unique or not) are stored in alt labels,
+    sometimes for lack of a better location as an actual external identifier because a property has not yet been
+    created. Specifying a search subject by property is meant to look for labels within a particular collection of
+    items based on classification such as 'instance of' or 'subclass of.' This function also handles the process
+    used elsewhere in this wikidataintegrator for building an ID map of native/contextual identifiers to existing
+    Wikidata items. This is returned in the "id_mapper" object when requesting raw data and supplying id_prefixes plus
+    a separator. When combined with label, the function serves to find an applicable item for update vs. create.
+
+    Note: Unfortunately, this function currently hard codes English as language for labels
+
+    :param search_property: Wikidata pid property identifier
+    :type search_property: str
+    :param search_subject: Wikidata qid item identifier
+    :type search_subject: str
+    :param label: (optional) Label to search; if None, returns available information for further processing
+    :type label: str
+    :param return_raw_data: Indicate whether or not to return raw results in the case of a single record found;
+    defaults to returning just the ID
+    :type return_raw_data: bool
+    :param endpoint: Endpoint URL for sparql queries
+    :type endpoint: str
+    :return: Returns all results if no label is supplied, returns None if label not found within search constraint,
+    returns just the Wikidata ID for a single item found with the label, returns all results with the label if more
+    than one result found with the label, returns an id_mapper dictionary containing mapped label-based IDs to
+    Wikidata ids
+    """
+    query = '''
+        SELECT 
+          ?item 
+          ?itemLabel
+          (GROUP_CONCAT(DISTINCT(?altLabel); separator = ",") AS ?altLabel_list) 
+        WHERE {
+              ?item wdt:%s wd:%s.
+              OPTIONAL { ?item skos:altLabel ?altLabel . FILTER (lang(?altLabel) = "en") }
+              SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+            }
+        GROUP BY ?item ?itemLabel
+    ''' % (search_property, search_subject)
+
     results = wdi_core.WDItemEngine.execute_sparql_query(query, endpoint=endpoint)['results']['bindings']
 
-    subclasses = list()
-    for item in results:
-        item_record = wdi_core.WDItemEngine(wd_item_id=item["item"]["value"].split("/")[-1])
-        subclasses.append(item_record)
+    if len(results) == 0:
+        return None
 
-    return subclasses
+    all_labels = list()
+    for result in results:
+        wdid = result["item"]["value"].split("/")[-1]
+        label_list = [l for l in result["altLabel_list"]["value"].split(",")]
+        label_list.append(result["itemLabel"]["value"])
 
+        d_result = {
+            "wdid": wdid,
+            "labels": label_list,
+            "source_data": result
+        }
 
-def get_wd_id_by_alias(alias, wd_items):
-    return next(
-        (
-            i.wd_item_id for i in wd_items
-            if next(
-                (
-                    a for a in i.wd_json_representation["aliases"]["en"] if a["value"] == alias
-                ), None
-            )
-            is not None
-        ),
-        None
-    )
+        if id_prefixes is not None:
+            id_labels = [i for i in label_list if i.split(id_sep)[0] in id_prefixes]
+            mapped_ids = {k:v for k, v in [(v, wdid) for v in id_labels]}
+            if mapped_ids:
+                d_result["id_mapper"] = mapped_ids
 
+        all_labels.append(d_result)
 
-def coordinate_mapper(coordinates):
-    """
-    Structures a set of lat,lon coordinates in a string to the structure required by the Wikidata property (P625)
+    if label is None:
+        return all_labels
 
-    :param coordinates: string coordinates as a list of latitude and longitude
-    :return: dictionary containing structure needed by the Wikidata property
-    """
-    return coordinates
+    items_with_label = [i for i in all_labels if label.lower() in map(str.lower, i["labels"])]
+
+    if len(items_with_label) == 0:
+        return None
+
+    if len(items_with_label) > 1:
+        return items_with_label
+
+    if len(items_with_label) == 1:
+        if return_raw_data:
+            return items_with_label[0]
+        else:
+            return items_with_label[0]["wdid"]
 
 
 from .mapping_relation_helper import MappingRelationHelper

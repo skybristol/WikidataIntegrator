@@ -826,6 +826,9 @@ class WDItemEngine(object):
         :param append: If true, append a new alias to the list of existing aliases, else, overwrite. Default: True
         :return: None
         """
+        if isinstance(aliases, str):
+            aliases = [aliases]
+
         if self.fast_run and not self.require_write:
             self.require_write = self.fast_run_container.check_language_data(qid=self.wd_item_id,
                                                                              lang_data=aliases, lang=lang,
