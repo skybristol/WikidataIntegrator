@@ -44,6 +44,13 @@ PROPS = {
     'retrieved': 'P813',
     'mapping relation type': 'P4390',
     'arxiv id': 'P818',
+    'subclass of': 'P279',
+    'coordinate location': 'P625',
+    'has part': 'P527',
+    'part of': 'P361',
+    'country': 'P17',
+    'locality': 'P131',
+    'source repo': 'P1324',
 }
 
 # https://www.wikidata.org/wiki/Property:P4390

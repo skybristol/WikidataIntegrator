@@ -1,5 +1,5 @@
 from wikidataintegrator import wdi_core
-from wikidataintegrator.wdi_helpers import id_mapper, try_write, items_by_label
+from wikidataintegrator.wdi_helpers import try_write, items_by_label, PROPS
 import wikidataintegrator.wdi_helpers as wdh
 from wikidataintegrator.wdi_helpers.wikibase_helper import WikibaseHelper
 
@@ -37,7 +37,8 @@ class Ecoregion(object):
     _release_cache = dict()
 
     def __init__(self, identifier, title, instance_of, country, located_in, latitude, longitude,
-                 part_of=None, has_part=None, mediawiki_api_url='https://www.wikidata.org/w/api.php',
+                 part_of=None, has_part=None,
+                 mediawiki_api_url='https://www.wikidata.org/w/api.php',
                  sparql_endpoint_url='https://query.wikidata.org/sparql'):
         """
 
@@ -80,6 +81,9 @@ class Ecoregion(object):
         if isinstance(self.has_part, str):
             self.has_part = [self.has_part]
 
+        self.data_source_url = "https://www.epa.gov/eco-research/ecoregions"
+        self.code_source_url = "https://github.com/skybristol/wdbots"
+
         self.classification_item = "Q52111282"
         self.id_prefixes = ["NA_L1CODE","NA_L2CODE","NA_L3CODE","US_L3CODE","US_L4CODE"]
 
@@ -90,8 +94,8 @@ class Ecoregion(object):
         # Use the known alias for ecoregion classification to retrieve the associated Wikidata item
         # Set description based on ecoregion class label and qid value for classification of item
         instance_of_record = wdh.items_by_label(
-            search_property="P279",
-            search_subject="Q52111282",
+            search_property=PROPS['subclass of'],
+            search_subject=self.classification_item,
             label=self.instance_of,
             return_raw_data=True
         )
@@ -110,35 +114,77 @@ class Ecoregion(object):
 
     def make_statements(self):
         s = []
-        helper = self.helper
 
-        s.append(wdi_core.WDItemID(helper.get_qid(self.instance_of_qid), helper.get_pid("P31")))
+        data_ref = wdi_core.WDUrl(
+            self.data_source_url,
+            PROPS['reference URL'],
+            is_reference=True
+        )
+        code_ref = wdi_core.WDUrl(
+            self.data_source_url,
+            PROPS['source repo'],
+            is_reference=True
+        )
+        references = [data_ref, code_ref]
+
+        s.append(
+            wdi_core.WDItemID(
+                self.instance_of_qid,
+                PROPS['instance of'],
+                references=references
+            )
+        )
 
         # countries ecoregion a part of
         for country_id in self.country:
-            s.append(wdi_core.WDItemID(helper.get_qid(country_id), helper.get_pid("P17")))
+            s.append(
+                wdi_core.WDItemID(
+                    country_id,
+                    PROPS['country'],
+                    references=references
+                )
+            )
 
         # states, provinces, counties ecoregion intersects with
         for location_id in self.located_in:
-            s.append(wdi_core.WDItemID(helper.get_qid(location_id), helper.get_pid("P131")))
+            s.append(
+                wdi_core.WDItemID(
+                    location_id,
+                    PROPS['locality'],
+                    references=references
+                )
+            )
 
         # coordinate location of representative point
         s.append(wdi_core.WDGlobeCoordinate(
             latitude=self.latitude,
             longitude=self.longitude,
             precision=4.25,
-            prop_nr=helper.get_pid("P625")
+            prop_nr=PROPS['coordinate location'],
+            references=references
         ))
 
         # Higher level classed ecoregions this ecoregion is a part of
         if self.part_of:
             for part_of_id in self.part_of:
-                s.append(wdi_core.WDItemID(helper.get_qid(part_of_id), helper.get_pid("P361")))
+                s.append(
+                    wdi_core.WDItemID(
+                        part_of_id,
+                        PROPS['part of'],
+                        references=references
+                    )
+                )
 
         # Lower level classed ecoregions this ecoregion contains
         if self.has_part:
             for has_part_id in self.has_part:
-                s.append(wdi_core.WDItemID(helper.get_qid(has_part_id), helper.get_pid("P527")))
+                s.append(
+                    wdi_core.WDItemID(
+                        has_part_id,
+                        PROPS['has part'],
+                        references=references
+                    )
+                )
 
         self.statements = s
 
@@ -152,7 +198,7 @@ class Ecoregion(object):
         # check in wikidata
         # alternate label matching id pattern
         id_map = items_by_label(
-            search_property="P31",
+            search_property=PROPS['instance of'],
             search_subject=self.instance_of_qid,
             return_raw_data=True,
             label=self.identifier,
