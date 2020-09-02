@@ -37,6 +37,28 @@ class Ecoregion(object):
     # dict. key is a tuple of (sparql_endpoint_url, title), value is the qid of that release
     _release_cache = dict()
 
+    classification_item = "Q52111282"
+
+    ecoregion_classes = {
+        "NA_CEC_Eco_Level1": "Q98544667",
+        "NA_CEC_Eco_Level2": "Q98544662",
+        "NA_CEC_Eco_Level3": "Q52111338",
+        "US_Eco_Level3": "Q52111338",
+        "US_Eco_Level4": "Q52111409"
+    }
+
+    id_prefixes = [
+        "NA_L1CODE",
+        "NA_L2CODE",
+        "NA_L3CODE",
+        "US_L3CODE",
+        "US_L4CODE"
+    ]
+
+    data_source_url = "https://www.epa.gov/eco-research/ecoregions"
+
+    code_source_url = "https://github.com/skybristol/wdbots"
+
     def __init__(self, identifier, title, instance_of, country, located_in, latitude, longitude,
                  part_of=None, has_part=None,
                  mediawiki_api_url='https://www.wikidata.org/w/api.php',
@@ -82,12 +104,6 @@ class Ecoregion(object):
         if isinstance(self.has_part, str):
             self.has_part = [self.has_part]
 
-        self.data_source_url = "https://www.epa.gov/eco-research/ecoregions"
-        self.code_source_url = "https://github.com/skybristol/wdbots"
-
-        self.classification_item = "Q52111282"
-        self.id_prefixes = ["NA_L1CODE","NA_L2CODE","NA_L3CODE","US_L3CODE","US_L4CODE"]
-
         self.sparql_endpoint_url = sparql_endpoint_url
         self.mediawiki_api_url = mediawiki_api_url
         self.helper = WikibaseHelper(sparql_endpoint_url)
@@ -122,11 +138,10 @@ class Ecoregion(object):
             is_reference=True
         ))
         references.append(wdi_core.WDUrl(
-            self.data_source_url,
+            self.code_source_url,
             PROPS['source repo'],
             is_reference=True
         ))
-        
 
         s.append(
             wdi_core.WDItemID(
