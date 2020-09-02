@@ -2,6 +2,7 @@ from wikidataintegrator import wdi_core
 from wikidataintegrator.wdi_helpers import try_write, items_by_label, PROPS
 import wikidataintegrator.wdi_helpers as wdh
 from wikidataintegrator.wdi_helpers.wikibase_helper import WikibaseHelper
+import copy
 
 
 class Ecoregion(object):
@@ -131,7 +132,7 @@ class Ecoregion(object):
             wdi_core.WDItemID(
                 self.instance_of_qid,
                 PROPS['instance of'],
-                references=references
+                references=copy.deepcopy(references)
             )
         )
 
@@ -141,7 +142,7 @@ class Ecoregion(object):
                 wdi_core.WDItemID(
                     country_id,
                     PROPS['country'],
-                    references=references
+                    references=copy.deepcopy(references)
                 )
             )
 
@@ -151,7 +152,7 @@ class Ecoregion(object):
                 wdi_core.WDItemID(
                     location_id,
                     PROPS['locality'],
-                    references=references
+                    references=copy.deepcopy(references)
                 )
             )
 
@@ -161,7 +162,7 @@ class Ecoregion(object):
             longitude=self.longitude,
             precision=4.25,
             prop_nr=PROPS['coordinate location'],
-            references=references
+            references=copy.deepcopy(references)
         ))
 
         # Higher level classed ecoregions this ecoregion is a part of
@@ -171,7 +172,7 @@ class Ecoregion(object):
                     wdi_core.WDItemID(
                         part_of_id,
                         PROPS['part of'],
-                        references=references
+                        references=copy.deepcopy(references)
                     )
                 )
 
@@ -182,7 +183,7 @@ class Ecoregion(object):
                     wdi_core.WDItemID(
                         has_part_id,
                         PROPS['has part'],
-                        references=references
+                        references=copy.deepcopy(references)
                     )
                 )
 
