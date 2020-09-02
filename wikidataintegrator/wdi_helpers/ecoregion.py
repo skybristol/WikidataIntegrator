@@ -115,18 +115,18 @@ class Ecoregion(object):
 
     def make_statements(self):
         s = []
-
-        data_ref = wdi_core.WDUrl(
+        references = []
+        references.append(wdi_core.WDUrl(
             self.data_source_url,
             PROPS['reference URL'],
             is_reference=True
-        )
-        code_ref = wdi_core.WDUrl(
+        ))
+        references.append(wdi_core.WDUrl(
             self.data_source_url,
             PROPS['source repo'],
             is_reference=True
-        )
-        references = [data_ref, code_ref]
+        ))
+        
 
         s.append(
             wdi_core.WDItemID(
